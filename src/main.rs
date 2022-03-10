@@ -1,46 +1,25 @@
 use calamine::{open_workbook, Xlsx, Reader, Range};
 use serde::{Serialize, Deserialize};
 use serde_derive::{Serialize, Deserialize};
+use serde_json::json;
 use std::fs::File;
-// const EXPECTED_JSON:&str = r#"
+use std::io::Read;
 
-// {
-//     "pokemonlocations" : [
-//         {
-//             "encountermethod" : "Grass",
-//             "routes" : [
-//                 {
-//                     "route" : "1",
-//                     "encounters" : {
-//                         "always" : [
-//                             {
-//                                 "pokemon" : "Bidoof",
-//                                 "encounterrate" : 0.1
 
-//                             },
-//                             {
-//                                 "pokemon" : "Starly",
-//                                 "encounterrate" : 0.1
-//                             }
-//                         ]
-//                         "day" : [
-//                             {
-//                                 "pokemon" : "Bidoof",
-//                                 "encounterrate" : 0.1
-//                             }
-//                         ]
-//                     }
-//                 },
-//                 {
-//                     "route" : "Viridian City"
-//                 }
 
-//             ]
-//         }
-//     ]
-// }
+#[derive(Serialize, Deserialize)]
+struct Pokemonname{
+    name:String,
+    url:String
+}
 
-// "#;
+#[derive(Serialize, Deserialize)]
+struct Pokemonlist {
+    count:f64,
+    next:String,
+    previous:String,
+    results:Vec<Pokemonname>
+}
 
 
 
@@ -71,14 +50,76 @@ struct EncounterMethod {
     routes:Vec<PokemonEncounters>
 }
 
-#[derive(Serialize, Deserialize)]
-struct PokemonLocations {
-    pokemonlocation:Vec<EncounterMethod>
-}
 
 fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
+
+
+fn get_input() -> String {
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    
+    return input;
+
+}
+
+
+fn print_example_json() {
+
+
+    let expected_json:&str = r#"
+
+        {
+            "encountermethod" : "Grass",
+            "routes" : [
+                {
+                    "route" : "1",
+                    "encounters" : {
+                        "always" : [
+                            {
+                                "pokemon" : "Bidoof",
+                                "encounterrate" : 0.1
+
+                            },
+                            {
+                                "pokemon" : "Starly",
+                                "encounterrate" : 0.1
+                            }
+                        ]
+                        "day" : [
+                            {
+                                "pokemon" : "Bidoof",
+                                "encounterrate" : 0.1
+                            }
+                        ]
+                    }
+                },
+                {
+                    "route" : "Viridian City"
+                }
+
+            ]
+        }
+        
+    "#;
+
+        println!("{}",expected_json );
+
+}
+
+
+fn get_pokemon_list () {
+    
+    let mut json_file = std::fs::File::open("all_pokemon.json").unwrap();
+    let mut buff = String::new();
+    json_file.read_to_string(&mut buff).unwrap();
+    let json: Pokemonlist = serde_json::from_str(&buff).unwrap();
+    let pokemons = json.results;
+
+    // return pokemons;   -> COrrigir Erro
+}
+
 
 fn calamine_grass_extractor(column_number: u32) {
 
@@ -102,20 +143,10 @@ fn calamine_grass_extractor(column_number: u32) {
 }   
 
 
-fn get_input() -> String {
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input).unwrap();
-    
-    return input;
-
-}
-
-        
-
-
 
 fn main() {
     let x:u32 = 1;
-    calamine_grass_extractor(x);
+    //calamine_grass_extractor(x);
+    get_pokemon_list();
 
 }

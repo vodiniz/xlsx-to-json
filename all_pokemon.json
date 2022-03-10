@@ -1,7 +1,7 @@
 {
     "count": 1126,
-    "next": null,
-    "previous": null,
+    "next": "null",
+    "previous": "null",
     "results": [
       {
         "name": "bulbasaur",
@@ -4508,4 +4508,4 @@
         "url": "https://pokeapi.co/api/v2/pokemon/10228/"
       }
     ]
-  }
+}
