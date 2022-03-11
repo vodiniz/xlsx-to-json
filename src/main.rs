@@ -56,8 +56,13 @@ fn get_input() -> String {
     return input;
 }
 
-fn get_day_only_pokemons<T>(day_vec: &Vec<T>, night_vec: &Vec<T>) -> Vec<Vec<T>>{
+fn get_day_only_pokemons<T>(day_vec: Vec<Pokemon>, night_vec: Vec<Pokemon>) -> Vec<Pokemon>{
 
+    let day_only = day_vec.into_iter()
+        .zip(night_vec.into_iter())
+        .filter(|(p1, p2)| p1.pokemon != p2.pokemon).collect();
+
+    return day_only;
 
 }
 
