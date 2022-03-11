@@ -4,7 +4,9 @@ use serde_derive::{Serialize, Deserialize};
 use serde_json::json;
 use std::fs::File;
 use std::io::Read;
-use differ::{Differ, Tag};
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+
 
 #[derive(Serialize, Deserialize)]
 struct Pokemonname{
@@ -20,11 +22,31 @@ struct Pokemonlist {
     results:Vec<Pokemonname>
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct Pokemon {
     pokemon:String,
     encounterrate:f64
 }
+
+impl PartialEq for Pokemon {
+    fn eq(&self, other: &Pokemon) -> bool{
+        other.pokemon == self.pokemon
+    }
+}
+
+impl Eq for Pokemon {
+
+}
+
+impl Hash for Pokemon {
+    fn hash<H>(&self, state: &mut H)
+    where 
+        H: Hasher
+    {
+        self.pokemon.hash(state);
+    }
+}
+
 
 #[derive(Serialize, Deserialize)]
 struct EncounterTime {
@@ -56,14 +78,24 @@ fn get_input() -> String {
     return input;
 }
 
-fn get_day_only_pokemons<T>(day_vec: Vec<Pokemon>, night_vec: Vec<Pokemon>) -> Vec<Pokemon>{
+fn get_day_only_pokemons<T>(day_vec: Vec<Pokemon>, night_vec: Vec<Pokemon>) -> (Vec<Pokemon>, Vec<Pokemon>, Vec<Pokemon>){
 
-    let day_only = day_vec.into_iter()
-        .zip(night_vec.into_iter())
-        .filter(|(p1, p2)| p1.pokemon != p2.pokemon).collect();
+    let day_set:HashSet<Pokemon> = HashSet::from_iter(day_vec);
+    let night_set = HashSet::from_iter(night_vec);
 
-    return day_only;
+    let day_only_set = day_set.difference(&night_set)
+        .cloned()
+        .collect::<Vec<Pokemon>>();
 
+    let night_only_set = night_set.difference(&day_set)
+    .cloned()
+    .collect::<Vec<Pokemon>>();
+
+    let always_set = night_set.intersection(&day_set)
+    .cloned()
+    .collect::<Vec<Pokemon>>();
+
+    (day_only_set, night_only_set, always_set)
 }
 
 fn print_example_json(){
