@@ -6,6 +6,7 @@ use serde_derive::{Serialize, Deserialize};
 use std::io::Read;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+use std::fmt;
 
 
 #[derive(Serialize, Deserialize)]
@@ -47,26 +48,66 @@ impl Hash for Pokemon {
     }
 }
 
+impl fmt::Display for Pokemon {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        write!(f, "{} - {}%", self.pokemon, self.encounterrate*100.0)
+    }
+}
+
 
 #[derive(Serialize, Deserialize)]
 struct EncounterTime {
     always:Vec<Pokemon>,
     day:Vec<Pokemon>,
     night:Vec<Pokemon>
+    
+}
+impl fmt::Debug for EncounterTime {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+
+        write!(f, "\nAlways:\n");
+        for pokemon1 in &self.always {
+            write!(f, "{}\n", pokemon1);
+        }
+        write!(f, "\nDay:\n");
+        for pokemon2 in &self.day {
+            write!(f, "{}\n", pokemon2);
+        }
+        write!(f, "\nNight:\n");
+        for pokemon3 in &self.night {
+            write!(f, "{}\n", pokemon3);
+        }
+
+        write!(f,"\n")
+    }
+
 }
 
+
 #[derive(Serialize, Deserialize)]
-struct PokemonEncounters{
+struct RouteInfo{
     route:String,
-    encountertime:EncounterTime
+    encounter_info:EncounterTime
+}
+impl fmt::Display for RouteInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        write!(f, "Route:{}, {:?}", self.route, self.encounter_info)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
-struct EncounterMethod {
+struct Encounters {
 
     encountermethod:String,
-    routes:Vec<PokemonEncounters>
+    routes:Vec<RouteInfo>
 }
+struct AllEncounters {
+
+    encounters:Vec<Encounters>
+}
+
 
 // fn print_type_of<T>(_: &T) {
 //     println!("{}", std::any::type_name::<T>())
@@ -105,34 +146,39 @@ fn print_example_json(){
     let expected_json:&str = r#"
 
         {
-            "encountermethod" : "Grass",
-            "routes" : [
-                {
-                    "route" : "1",
-                    "encounters" : {
-                        "always" : [
-                            {
-                                "pokemon" : "Bidoof",
-                                "encounterrate" : 0.1
+            "encounters" : [
+                encountermethod: "Grass",
+                "routes" : [
+                    {
+                        "route" : "1",
+                        "encounters" : {
+                            "always" : [
+                                {
+                                    "pokemon" : "Bidoof",
+                                    "encounterrate" : 0.1
 
-                            },
-                            {
-                                "pokemon" : "Starly",
-                                "encounterrate" : 0.1
-                            }
-                        ]
-                        "day" : [
-                            {
-                                "pokemon" : "Bidoof",
-                                "encounterrate" : 0.1
-                            }
-                        ]
+                                },
+                                {
+                                    "pokemon" : "Starly",
+                                    "encounterrate" : 0.1
+                                }
+                            ]
+                            "day" : [
+                                {
+                                    "pokemon" : "Bidoof",
+                                    "encounterrate" : 0.1
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "route" : "Viridian City"
                     }
-                },
-                {
-                    "route" : "Viridian City"
-                }
 
+                ,
+                encountermethod: "Fishing",
+                "routes" : [
+                ]
             ]
         }
         
@@ -164,9 +210,8 @@ fn calamine_grass_extractor() {
     if let Some(Ok(document)) = excel.worksheet_range(&sheets[0]) {
 
         let mut column_number: u32 = 1;
-        let mut cell_not_empty = true;
 
-        'column_loop: while  cell_not_empty{
+        loop {
 
             let mut day_pokemon_vector = vec![];
             let mut night_pokemon_vector = vec![];
@@ -175,14 +220,12 @@ fn calamine_grass_extractor() {
                 .range((1,column_number),(1,column_number))[0]);
 
             if route_name[0].is_empty() {
-                break 'column_loop;
+                break 
             } 
                 
             let route_name = route_name[0]
                 .get_string()
                 .unwrap();
-
-            println!("{}",route_name);
 
             for (pokemon_column,rate_column) in (document.range((2,column_number),(13,column_number)).cells()).zip(document.range((2,0),(13,0)).used_cells()) {
 
@@ -220,6 +263,7 @@ fn calamine_grass_extractor() {
                 
                 let current_pokemon: Pokemon = Pokemon{pokemon: pokemon_name, encounterrate:pokemon_encounterrate};
 
+
                 if night_pokemon_vector.contains(&current_pokemon){
                     let index = night_pokemon_vector.iter().position(|r| r == &current_pokemon)
                         .expect("Can't find pokemon index.");
@@ -229,11 +273,15 @@ fn calamine_grass_extractor() {
                 }
             }
 
+
             let (only_day, only_night, always) = get_separate_encounters(day_pokemon_vector, night_pokemon_vector);
-            
+            let encounter_time:EncounterTime = EncounterTime{always:always, day: only_day, night: only_night};
+            //println!("{:?}",encounter_time);
+            let route_info:RouteInfo = RouteInfo{route:route_name.to_string(), encounter_info:encounter_time};
+
+            println!("{}", route_info);
             column_number += 1;
 
-            
 
         }
     }
