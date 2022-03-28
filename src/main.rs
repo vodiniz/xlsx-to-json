@@ -1,10 +1,11 @@
 use calamine::{open_workbook, Xlsx, Reader};
 use serde_derive::{Serialize, Deserialize};
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Read,BufWriter};
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
-use std::fmt;
+use std::{fmt, vec};
 
 #[derive(Serialize, Deserialize)]
 struct Pokemonname{
@@ -64,15 +65,15 @@ impl fmt::Debug for EncounterTime {
 
         write!(f, "\nAlways:\n");
         for pokemon1 in &self.always {
-            write!(f, "{}\n", pokemon1);
+            write!(f, "     {}\n", pokemon1);
         }
         write!(f, "\nDay:\n");
         for pokemon2 in &self.day {
-            write!(f, "{}\n", pokemon2);
+            write!(f, "     {}\n", pokemon2);
         }
         write!(f, "\nNight:\n");
         for pokemon3 in &self.night {
-            write!(f, "{}\n", pokemon3);
+            write!(f, "     {}\n", pokemon3);
         }
 
         write!(f,"\n")
@@ -85,27 +86,27 @@ struct EncounterTimeWater {
     old_rod:Vec<Pokemon>,
     good_rod:Vec<Pokemon>,
     super_rod:Vec<Pokemon>,
-    suring:Vec<Pokemon>
+    surfing:Vec<Pokemon>
     
 }
 impl fmt::Debug for EncounterTimeWater {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
-        write!(f, "\nOld Rod:\n");
+        write!(f, "\n   Old Rod:\n");
         for pokemon1 in &self.old_rod {
-            write!(f, "{}\n", pokemon1);
+            write!(f, "     {}\n", pokemon1);
         }
-        write!(f, "\nGood Rod:\n");
+        write!(f, "\n   Good Rod:\n");
         for pokemon2 in &self.good_rod {
-            write!(f, "{}\n", pokemon2);
+            write!(f, "     {}\n", pokemon2);
         }
-        write!(f, "\nSuper Rod:\n");
+        write!(f, "\n   Super Rod:\n");
         for pokemon3 in &self.super_rod {
-            write!(f, "{}\n", pokemon3);
+            write!(f, "     {}\n", pokemon3);
         }
-        write!(f, "\nSurfing:\n");
-        for pokemon3 in &self.suring {
-            write!(f, "{}\n", pokemon3);
+        write!(f, "\n   Surfing:\n");
+        for pokemon3 in &self.surfing {
+            write!(f, "     {}\n", pokemon3);
         }
 
         write!(f,"\n")
@@ -114,29 +115,37 @@ impl fmt::Debug for EncounterTimeWater {
 }
 
 
-#[derive(Serialize, Deserialize, Clone,)]
-struct RouteInfo{
-    route:String,
-    encounter_info:EncounterTime
+#[derive(Serialize, Deserialize, Clone)]
+struct RouteInfo<T>{
+    route: String,
+    encounter_info: T,
 }
-impl fmt::Display for RouteInfo {
+impl fmt::Debug for RouteInfo<EncounterTimeWater> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Use `self.number` to refer to each positional data point.
-        write!(f, "Route:{}, {:?}", self.route, self.encounter_info)
+        write!(f, "\nRoute:{}   {:?}", self.route, self.encounter_info)
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Encounters {
+impl fmt::Debug for RouteInfo<EncounterTime> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        write!(f, "Route:{} {:?}", self.route, self.encounter_info)
+    }
+}
 
-    encountermethod:String,
-    routes:Vec<RouteInfo>
+
+#[derive(Serialize, Deserialize, Clone)]
+struct Encounters<T> {
+
+    encountermethod: String,
+    routes: Vec<T>
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-struct AllEncounters {
+struct AllEncounters<T> {
 
-    encounters:Vec<Encounters>
+    encounters:Vec<T>
 }
 
 
@@ -161,7 +170,7 @@ fn get_separate_encounters(day_vec: Vec<Pokemon>, night_vec: Vec<Pokemon>) -> (V
 }
 
 
-fn create_json (json: AllEncounters){
+fn create_json (json: AllEncounters<Encounters<RouteInfo<EncounterTime>>>){
 
     let f = File::create("grass.json").expect("Unable to create file");
     let bw = BufWriter::new(f);
@@ -183,11 +192,9 @@ fn replace_galarian_alola(name:&str) -> String{
 
     if name.contains("-G"){
         let result = name.replace("-G", "-galar");
-        println!("{}", result.to_string());
         result.to_string()
     } else if name.contains("-A"){
         let result = name.replace("-A", "-alola");
-        println!("{}", result.to_string());
         result.to_string()
     } else {
         name.to_string()
@@ -203,7 +210,7 @@ fn calamine_grass_extractor() {
     if let Some(Ok(document)) = excel.worksheet_range(&sheets[0]) {
 
         let mut column_number: u32 = 1;
-        let mut route_vector: Vec<RouteInfo> = vec![];
+        let mut route_vector: Vec<RouteInfo<EncounterTime>> = vec![];
         
 
         loop {
@@ -269,38 +276,20 @@ fn calamine_grass_extractor() {
 
             let (only_day, only_night, always) = get_separate_encounters(day_pokemon_vector, night_pokemon_vector);
             let encounter_time:EncounterTime = EncounterTime{always:always, day: only_day, night: only_night};
-            let route_info:RouteInfo = RouteInfo{route:route_name.to_string(), encounter_info:encounter_time};
+            let route_info:RouteInfo<EncounterTime> = RouteInfo{route:route_name.to_string(), encounter_info:encounter_time};
             route_vector.push(route_info);
             
 
             column_number += 1;
         }
 
-        let encounters:Encounters = Encounters{encountermethod: "Grass".to_string(), routes: route_vector};
-        let all_encounters:AllEncounters = AllEncounters{encounters: vec!(encounters)};
+        let encounters:Encounters<RouteInfo<EncounterTime>> = Encounters{encountermethod: "Grass".to_string(), routes: route_vector};
+        let all_encounters:AllEncounters<Encounters<RouteInfo<EncounterTime>>> = AllEncounters{encounters: vec!(encounters)};
         create_json(all_encounters);
     }
                     
 }
     
-fn calamine_water_extractor(){
-    let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
-    let sheets = excel.sheet_names().to_owned();
-    
-    if let Some(Ok(document)) = excel.worksheet_range(&sheets[1]) {
-        let mut column_number = 1;
-        get_rods_surf_list(1, &document);
-        loop {
-            match get_route_name(column_number, &document){
-                Some(n) =>println!("{}", n),
-                None => break
-            }
-            column_number += 1;
-        }
-    }
-}
-
-
 fn get_route_name(column_number: u32, document: &calamine::Range<calamine::DataType>) -> Option<String>{
 
     let document_range = document.range((0, column_number), (0, column_number));
@@ -310,6 +299,29 @@ fn get_route_name(column_number: u32, document: &calamine::Range<calamine::DataT
         _ => None,
     }
 }
+
+fn calamine_water_extractor(){
+    let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
+    let sheets = excel.sheet_names().to_owned();
+    let mut water_encounters:Vec<RouteInfo<EncounterTimeWater>> = vec![];
+
+    
+    if let Some(Ok(document)) = excel.worksheet_range(&sheets[1]) {
+        let mut column_number = 1;
+        loop {
+            match get_route_name(column_number, &document){
+                Some(n) => water_encounters.push(get_rods_surf_list(n, column_number, &document)),
+                None => break
+            }
+            column_number += 1;
+        }
+        println!("{:?}", water_encounters);
+        let encounters:Encounters<RouteInfo<EncounterTimeWater>> = Encounters { encountermethod: "Fishing and Surfing".to_string(), routes: water_encounters };
+
+    }
+}
+
+
 
 fn check_pokemon_in_vec(mut vec:Vec<Pokemon>,pokemon:Pokemon) -> Vec<Pokemon>{
 
@@ -324,17 +336,16 @@ fn check_pokemon_in_vec(mut vec:Vec<Pokemon>,pokemon:Pokemon) -> Vec<Pokemon>{
     }
 }
 
-fn get_rods_surf_list(column_number: u32, document: &calamine::Range<calamine::DataType>) {
+fn get_rods_surf_list(route_name: String, column_number: u32, document: &calamine::Range<calamine::DataType>) -> RouteInfo<EncounterTimeWater>{
+
     let old_rod = get_old_rod(column_number, &document);
     let good_rod = get_good_rod(column_number, &document);
     let super_rod = get_super_rod(column_number, &document);
     let surfing = get_surfing(column_number, &document);  
 
-    println!("{:?}",old_rod);
-    println!("{:?}",good_rod);
-    println!("{:?}",super_rod);
-    println!("{:?}",surfing);
-
+    let route_info = make_route_info(route_name, old_rod, good_rod, super_rod, surfing);
+    route_info
+    
 }
 
 fn get_old_rod(column_number: u32, document: &calamine::Range<calamine::DataType>) -> Vec<Pokemon>{
@@ -343,7 +354,7 @@ fn get_old_rod(column_number: u32, document: &calamine::Range<calamine::DataType
     for (pokemon_column,rate_column) in (document.range((2,column_number),(3,column_number)).cells()).zip(document.range((2,0),(3,0)).used_cells()){
         let tuple = (pokemon_column.2.get_string(), rate_column.2.get_float());
         match tuple{
-            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: string.to_string(), encounterrate:float as f64}),
+            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: replace_galarian_alola(string), encounterrate:float as f64}),
             _ => (),
         }
     }
@@ -355,7 +366,7 @@ fn get_good_rod(column_number: u32, document: &calamine::Range<calamine::DataTyp
     for (pokemon_column,rate_column) in (document.range((5,column_number),(7,column_number)).cells()).zip(document.range((5,0),(7,0)).used_cells()){
         let tuple = (pokemon_column.2.get_string(), rate_column.2.get_float());
         match tuple{
-            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: string.to_string(), encounterrate:float as f64}),
+            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: replace_galarian_alola(string), encounterrate:float as f64}),
             _ => (),
         }
     }
@@ -367,7 +378,7 @@ fn get_super_rod(column_number: u32, document: &calamine::Range<calamine::DataTy
     for (pokemon_column,rate_column) in (document.range((9,column_number),(13,column_number)).cells()).zip(document.range((9,0),(13,0)).used_cells()){
         let tuple = (pokemon_column.2.get_string(), rate_column.2.get_float());
         match tuple{
-            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: string.to_string(), encounterrate:float as f64}),
+            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: replace_galarian_alola(string), encounterrate:float as f64}),
             _ => (),
         }
     }
@@ -379,14 +390,21 @@ fn get_surfing(column_number: u32, document: &calamine::Range<calamine::DataType
     for (pokemon_column,rate_column) in (document.range((15,column_number),(19,column_number)).cells()).zip(document.range((15,0),(19,0)).used_cells()){
         let tuple = (pokemon_column.2.get_string(), rate_column.2.get_float());
         match tuple{
-            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: string.to_string(), encounterrate:float as f64}),
+            (Some(string), Some(float)) => pokemon_vec = check_pokemon_in_vec(pokemon_vec, Pokemon{pokemon: replace_galarian_alola(string), encounterrate:float as f64}),
             _ => (),
         }
     }
     pokemon_vec
 }
 
-
+fn make_route_info(route_name: String, old_rod: Vec<Pokemon>, good_rod: Vec<Pokemon>, super_rod: Vec<Pokemon>, surfing: Vec<Pokemon>) -> RouteInfo<EncounterTimeWater>{
+    
+    let encounter_water: EncounterTimeWater = EncounterTimeWater{
+        old_rod:old_rod, good_rod:good_rod, super_rod:super_rod, surfing:surfing
+    };
+    let route_info:RouteInfo<EncounterTimeWater> = RouteInfo { route: route_name, encounter_info: encounter_water };
+    route_info
+}
 
 
 fn main() {
