@@ -52,6 +52,32 @@ impl fmt::Display for Pokemon {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct PokemonTrade {
+    pokemon: String,
+    wantedPokemon: String
+}
+impl fmt::Debug for PokemonTrade {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Pokemon: {}", self.pokemon);
+        write!(f, "\n   Pokemon to trade: {}\n",self.wantedPokemon)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+struct PokemonGift {
+    pokemon: String,
+    gift_requirement: String
+}
+
+impl fmt::Debug for PokemonGift {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Pokemon: {}", self.pokemon);
+        write!(f, "\n   Gift Requirements: {}\n",self.gift_requirement)
+    }
+}
+
+
 
 #[derive(Serialize, Deserialize, Clone)]
 struct EncounterTime {
@@ -130,17 +156,75 @@ impl fmt::Debug for RouteInfo<EncounterTimeWater> {
 impl fmt::Debug for RouteInfo<EncounterTime> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Use `self.number` to refer to each positional data point.
-        write!(f, "Route:{} {:?}", self.route, self.encounter_info)
+        write!(f, "\n Route:{} {:?}", self.route, self.encounter_info)
     }
 }
 
+impl fmt::Debug for RouteInfo<PokemonTrade> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        write!(f, "\nRoute:{} \n\n{:?}", self.route, self.encounter_info)
+    }
+}
 
+impl fmt::Debug for RouteInfo<PokemonGift> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        write!(f, "\nRoute:{} \n\n{:?}", self.route, self.encounter_info)
+    }
+}
+
+ 
 #[derive(Serialize, Deserialize, Clone)]
 struct Encounters<T> {
 
     encountermethod: String,
     routes: Vec<T>
 }
+
+impl fmt::Debug for Encounters<RouteInfo<EncounterTime>> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        for route in &self.routes {
+            write!(f, "{:?}", route);
+            write!(f,"------------------------------");
+        }
+        write!(f,"\n")
+    }
+}
+
+impl fmt::Debug for Encounters<RouteInfo<EncounterTimeWater>> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        for route in &self.routes {
+            write!(f, "{:?}", route);
+            write!(f,"------------------------------");
+        }
+        write!(f,"\n")
+    }
+}
+
+impl fmt::Debug for Encounters<RouteInfo<PokemonTrade>> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        for all_routes in &self.routes {
+            write!(f, "{:?}", all_routes);
+            write!(f,"------------------------------");
+        }
+        write!(f,"\n")
+    }
+}
+impl fmt::Debug for Encounters<RouteInfo<PokemonGift>> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Use `self.number` to refer to each positional data point.
+        for all_routes in &self.routes {
+            write!(f, "{:?}", all_routes);
+            write!(f,"------------------------------");
+        }
+        write!(f,"\n")
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone)]
 struct AllEncounters<T> {
@@ -202,7 +286,7 @@ fn replace_galarian_alola(name:&str) -> String{
 }
 
 
-fn calamine_grass_extractor() {
+fn calamine_grass_extractor() -> Option<Encounters<RouteInfo<EncounterTime>>>{
 
     let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
     let sheets = excel.sheet_names().to_owned();
@@ -284,8 +368,10 @@ fn calamine_grass_extractor() {
         }
 
         let encounters:Encounters<RouteInfo<EncounterTime>> = Encounters{encountermethod: "Grass".to_string(), routes: route_vector};
-        let all_encounters:AllEncounters<Encounters<RouteInfo<EncounterTime>>> = AllEncounters{encounters: vec!(encounters)};
-        create_json(all_encounters);
+        //let all_encounters:AllEncounters<Encounters<RouteInfo<EncounterTime>>> = AllEncounters{encounters: vec!(encounters)};
+        Some(encounters)
+    } else {
+        None
     }
                     
 }
@@ -300,7 +386,8 @@ fn get_route_name(column_number: u32, document: &calamine::Range<calamine::DataT
     }
 }
 
-fn calamine_water_extractor(){
+
+fn calamine_water_extractor() -> Option<Encounters<RouteInfo<EncounterTimeWater>>>{
     let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
     let sheets = excel.sheet_names().to_owned();
     let mut water_encounters:Vec<RouteInfo<EncounterTimeWater>> = vec![];
@@ -315,9 +402,11 @@ fn calamine_water_extractor(){
             }
             column_number += 1;
         }
-        println!("{:?}", water_encounters);
         let encounters:Encounters<RouteInfo<EncounterTimeWater>> = Encounters { encountermethod: "Fishing and Surfing".to_string(), routes: water_encounters };
+        Some(encounters)
 
+    } else {
+        None
     }
 }
 
@@ -406,10 +495,79 @@ fn make_route_info(route_name: String, old_rod: Vec<Pokemon>, good_rod: Vec<Poke
     route_info
 }
 
+fn get_trade_pokemon(row_number: u32, document: &calamine::Range<calamine::DataType>) -> Option<(String, String, String)>{
+
+    let range = document.range((row_number + 2, 0), (row_number + 2, 3));
+
+    let tuple = (range[0][0].get_string(), range[0][1].get_string(), range[0][2].get_string());
+
+    match tuple {
+        (Some(a), Some(b), Some(c))
+            => Some((a.to_string(),b.to_string(), c.to_string())),
+            _ => None,
+    }
+}
+
+fn calamine_trade_pokemon_extractor() -> Encounters<RouteInfo<PokemonTrade>>{
+    let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
+    let sheets = excel.sheet_names().to_owned(); 
+    let mut route_vec: Vec<RouteInfo<PokemonTrade>> = vec![];
+
+    if let Some(Ok(document)) = excel.worksheet_range(&sheets[2]){
+        let mut row_number = 1;
+        loop {
+
+            match get_trade_pokemon(row_number, &document){
+                Some(tuple) => {
+                    let trade_pokemon: PokemonTrade = PokemonTrade{pokemon: replace_galarian_alola(&tuple.1) , wantedPokemon: replace_galarian_alola(&tuple.2)};
+                    let route_info: RouteInfo<PokemonTrade> = RouteInfo { route: tuple.0, encounter_info: trade_pokemon};
+                    route_vec.push(route_info);
+                }
+                None => break
+            }
+            row_number += 1;
+        }
+
+    }
+    let encounters:Encounters<RouteInfo<PokemonTrade>> = Encounters { encountermethod: "Trade".to_string(), routes: route_vec };
+    encounters
+}
+
+fn calamine_gift_pokemon_extractor() -> Encounters<RouteInfo<PokemonGift>>{
+    let mut excel: Xlsx<_> = open_workbook("pokemon_locations.xlsx").expect("Couldn't open pokemon xlsx");
+    let sheets = excel.sheet_names().to_owned(); 
+    let mut route_vec: Vec<RouteInfo<PokemonGift>> = vec![];
+
+    if let Some(Ok(document)) = excel.worksheet_range(&sheets[3]){
+        let mut row_number = 1;
+        loop {
+
+            match get_trade_pokemon(row_number, &document){
+                Some(tuple) => {
+                    let trade_pokemon: PokemonGift = PokemonGift{pokemon: replace_galarian_alola(&tuple.0) , gift_requirement: replace_galarian_alola(&tuple.2)};
+                    let route_info: RouteInfo<PokemonGift> = RouteInfo { route: tuple.1, encounter_info: trade_pokemon};
+                    route_vec.push(route_info);
+                }
+                None => break
+            }
+            row_number += 1;
+        }
+
+    }
+    let encounters:Encounters<RouteInfo<PokemonGift>> = Encounters { encountermethod: "Trade".to_string(), routes: route_vec };
+    encounters
+
+}
+
 
 fn main() {
 
     let list = get_pokemon_list();
-    //calamine_grass_extractor();
-    calamine_water_extractor()
+    let grass_encounter = calamine_grass_extractor();
+    let water_encounter = calamine_water_extractor();
+    let trade_encounters =calamine_trade_pokemon_extractor();
+    let gift_encounters = calamine_gift_pokemon_extractor();
+    dbg!(gift_encounters);
+
+    
 }
